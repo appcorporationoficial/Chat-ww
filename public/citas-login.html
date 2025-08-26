@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitar Cita</title>
+<style>
+body{margin:0;font-family:Arial;background:#f4f7fb;padding:20px;}
+h1{text-align:center;color:#2575fc;}
+form{max-width:400px;margin:auto;background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+input,textarea{width:100%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:8px;}
+button{width:100%;padding:12px;background:#2575fc;color:white;border:none;border-radius:8px;font-size:16px;cursor:pointer;margin-top:8px;}
+button:hover{background:#1d5cd6;}
+#mensaje{margin-top:10px;text-align:center;color:green;}
+#userInfo{max-width:400px;margin:20px auto;padding:15px;background:#e0f0ff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+#cambiarUsuario{background:#fc5252;}
+#cambiarUsuario:hover{background:#d43f3f;}
+</style>
+</head>
+<body>
+
+<h1>Unirse a Citas</h1>
+
+<div id="userInfo" style="display:none;"></div>
+
+<form id="citaForm">
+  <input type="text" id="username" placeholder="Tu nombre" required>
+  <input type="number" id="edad" placeholder="Edad">
+  <textarea id="intereses" placeholder="Tus intereses (opcional)"></textarea>
+  
