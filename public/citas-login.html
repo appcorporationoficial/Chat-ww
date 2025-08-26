@@ -27,4 +27,70 @@ button:hover{background:#1d5cd6;}
   <input type="text" id="username" placeholder="Tu nombre" required>
   <input type="number" id="edad" placeholder="Edad">
   <textarea id="intereses" placeholder="Tus intereses (opcional)"></textarea>
-  
+  <button type="submit">Unirse</button>
+  <div id="mensaje"></div>
+</form>
+
+<script>
+const form = document.getElementById("citaForm");
+const mensaje = document.getElementById("mensaje");
+const userInfo = document.getElementById("userInfo");
+
+// Función para mostrar datos del usuario registrado
+function mostrarUsuario(usuario){
+  userInfo.style.display = "block";
+  userInfo.innerHTML = `
+    <h3>Usuario Registrado:</h3>
+    <p><strong>Nombre:</strong> ${usuario.username}</p>
+    <p><strong>Edad:</strong> ${usuario.edad}</p>
+    <p><strong>Intereses:</strong> ${usuario.intereses}</p>
+    <button id="cambiarUsuario">Cambiar Usuario</button>
+  `;
+  form.style.display = "none";
+
+  // Botón para cambiar usuario
+  document.getElementById("cambiarUsuario").addEventListener("click", () => {
+    localStorage.removeItem("usuarioCitas");
+    userInfo.style.display = "none";
+    form.style.display = "flex";
+    mensaje.textContent = "";
+  });
+}
+
+// Revisar si ya hay usuario guardado en localStorage
+const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioCitas"));
+if(usuarioGuardado){
+  mostrarUsuario(usuarioGuardado);
+}
+
+form.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const edad = document.getElementById("edad").value;
+  const intereses = document.getElementById("intereses").value;
+
+  try {
+    const res = await fetch("/citas", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({username, edad, intereses})
+    });
+    const data = await res.json();
+    if(data.success){
+      mensaje.style.color="green";
+      mensaje.textContent="✅ Te has unido a las citas!";
+      localStorage.setItem("usuarioCitas", JSON.stringify(data.cita)); // Guardar datos
+      mostrarUsuario(data.cita);
+    }else{
+      mensaje.style.color="red";
+      mensaje.textContent=data.error || "Ocurrió un error";
+    }
+  } catch(err){
+    mensaje.style.color="red";
+    mensaje.textContent="Error de conexión";
+  }
+});
+</script>
+
+</body>
+</html>
