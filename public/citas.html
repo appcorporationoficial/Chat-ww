@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Citas disponibles</title>
+<style>
+  :root{--primary:#fb7185;--card:#ffffff;--bg:#f7f9fc;--muted:#6b7280}
+  html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:#111}
+  .app{min-height:100vh;padding:12px;display:flex;flex-direction:column;gap:12px}
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:12px;background:var(--card);box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+  .appbar .left{display:flex;align-items:center;gap:12px}
+  .card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(16,24,40,0.04);display:flex;gap:12px;align-items:center}
+  .avatar{width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#ffd6e8,var(--primary));display:grid;place-items:center;font-weight:700;color:white}
+  .info{flex:1}
+  .name{font-weight:800}
+  .meta{font-size:13px;color:var(--muted)}
+  .action{padding:8px 10px;border-radius:10px;background:var(--primary);color:white;border:0;font-weight:700}
+  .empty{padding:20px;text-align:center;color:var(--muted)}
+  .button-primary{padding:6px 12px;border-radius:10px;background:var(--primary);color:white;font-weight:700;border:none;cursor:pointer}
+  .button-primary:hover{background:#e14c75}
+</style>
+  </head>
+  <body>
+	<main class="app">
+	  <header class="appbar">
+		<div class="left">
+		  <div class="back" onclick="history.back()" style="cursor:pointer;font-weight:700;font-size:18px;">←</div>
+		  <div>
+			<div style="font-weight:800">Citas disponibles</div>
+			<div style="font-size:13px;color:var(--muted)">Explora perfiles y solicita una cita</div>
+		  </div>
+		</div>
+		<button class="button-primary" onclick="window.location.href='citas-login.html'">Unirse a las citas</button>
+	  </header>
+
+	  <section id="list" class="grid"></section>
+	</main>
+
+<script>
+const list = document.getElementById('list');
+
+async function render() {
+  list.innerHTML = '';
+  let perfiles = [];
+  try {
+    const res = await fetch('https://chat-ww.onrender.com/citas'); // URL de tu Replit
+    perfiles = await res.json();
+  } catch(err) {
+    console.error(err);
+    list.innerHTML = '<div class="empty">No se pudieron cargar los perfiles.</div>';
+    return;
+  }
+
+  if (perfiles.length === 0) {
+    list.innerHTML = '<div class="empty">No hay citas disponibles ahora.</div>';
+    return;
+  }
+
+  perfiles.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <div class="avatar">${p.username.slice(0,1)}</div>
+      <div class="info">
+        <div class="name">${p.username}, ${p.edad || ''}</div>
+        <div class="meta">${p.intereses || ''}</div>
+      </div>
+      <div>
+        <button class="action" onclick="abrirChat('${p.username}')">Solicitar</button>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function solicitar(id){
+  alert('Solicitud enviada a ' + id + ' (Demo)');
+} 
+
+function abrirChat(toName){
+  // Guardar el destinatario en localStorage
+  localStorage.setItem("chatTo", toName);
+  // Abrir la página de chat privado
+  window.open("chat-privado.html","_blank");
+} 
+
+// iniciar
+render();
+</script>
+  </body>
+</html>
