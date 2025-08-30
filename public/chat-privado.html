@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Chat Privado</title>
+<style>
+body{margin:0;font-family:Arial;height:100vh;display:flex;flex-direction:column;background:#f4f7fb;}
+header{background:#2575fc;color:white;display:flex;justify-content:space-between;align-items:center;padding:15px;font-size:20px;font-weight:bold;}
+#changeUser{background:#ff4081;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;color:white;}
+#changeUser:hover{background:#e73370;}
+#messages{flex:1;padding:15px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.msg{max-width:70%;padding:10px 14px;border-radius:16px;box-shadow:0 2px 5px rgba(0,0,0,0.15);}
+.msg .user{font-size:13px;font-weight:bold;margin-bottom:5px;opacity:0.8;}
+.msg .text{font-size:15px;line-height:1.4;}
+.me{align-self:flex-end;background:linear-gradient(135deg,#2575fc,#6a11cb);color:white;border-bottom-right-radius:4px;}
+.me .user{color:#d1d9ff;}
+.other{align-self:flex-start;background:#e9ecef;color:#333;border-bottom-left-radius:4px;}
+.other .user{color:#555;}
+form{display:flex;padding:10px;background:#fff;border-top:1px solid #ddd;}
+input{flex:1;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:8px;outline:none;}
+button{margin-left:10px;padding:12px 20px;background:#2575fc;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;}
+button:hover{background:#1d5cd6;}
+#userModal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;}
+#userModal .box{background:white;padding:30px;border-radius:12px;text-align:center;width:80%;max-width:300px;}
+#userModal input{width:100%;margin-top:10px;padding:10px;border:1px solid #aaa;border-radius:8px;}
+#userModal button{margin-top:15px;width:100%;background:#2575fc;padding:12px;font-size:16px;border:none;border-radius:8px;color:white;cursor:pointer;}
+#userModal button:hover{background:#1d5cd6;}
+</style>
+  </head>
+  <body>
+	<header>
+	  <span>💬 Chat Privado</span>
+	  <button id="changeUser">Cambiar Usuario</button>
+	</header>
+
+	<div id="messages"></div>
+	<form id="chatForm">
+	  <input type="text" id="msgInput" placeholder="Escribe un mensaje..." autocomplete="off" required>
+	  <button type="submit">Enviar</button>
+	</form>
+
+	<!-- Modal cambiar usuario -->
+	<div id="userModal">
+	  <div class="box">
+		<h2>Cambiar usuario</h2>
+		<input type="text" id="usernameInput" placeholder="Tu nuevo nombre..." required>
+		<button id="saveUser">Guardar</button>
+	  </div>
+	</div>
+
+<script>
+const messagesDiv = document.getElementById("messages");
+const form = document.getElementById("chatForm");
+const input = document.getElementById("msgInput");
+const userModal = document.getElementById("userModal");
+const usernameInput = document.getElementById("usernameInput");
+const saveUserBtn = document.getElementById("saveUser");
+const changeUserBtn = document.getElementById("changeUser");
+
+function randomUser(){ return "Invitado"+Math.floor(Math.random()*10000); }
+
+// Usuario visible
+let username = localStorage.getItem("chatUser") || randomUser();
+localStorage.setItem("chatUser", username);
+
+// Usuario destino
+let toName = localStorage.getItem("chatTo") || prompt("Nombre del usuario con quien chatear") || randomUser();
+localStorage.setItem("chatTo", toName);
+
+// Pon aquí la URL completa de tu proyecto, incluyendo https
+const projectUrl = "https://chat-ww.onrender.com/";
+
+// Convertir a WebSocket (http → ws, https → wss)
+const wsUrl = projectUrl.replace(/^http/, 'ws') + "/ws-privado";
+
+// Conectar WebSocket
+const ws = new WebSocket(wsUrl); 
+
+ws.onopen = () => {
+  // Pedir últimos mensajes privados si hay historial
+  ws.send(JSON.stringify({ fromId:Date.now(), fromName:username, toName, text:"", requestLast:true }));
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  // Mostrar solo mensajes privados entre username y toName
+  if (data.private && (data.user === username || data.user === toName)) {
+    addMessage(data.user === username ? "me" : "other", data.text, data.user);
+  }
+};
+
+saveUserBtn.addEventListener("click", () => {
+  const val = usernameInput.value.trim();
+  if(val.length>0){
+    username = val;
+    localStorage.setItem("chatUser", username);
+    userModal.style.display = "none";
+  }
+});
+
+changeUserBtn.addEventListener("click", () => {
+  usernameInput.value="";
+  userModal.style.display = "flex";
+});
+
+userModal.addEventListener("click", (e) => {
+  if(e.target===userModal) userModal.style.display="none";
+});
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if(!text) return;
+  ws.send(JSON.stringify({fromId:Date.now(), fromName:username, toName, text, private:true}));
+  input.value = "";
+});
+
+function addMessage(type, text, user){
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+  div.innerHTML = `<div class="user">${user}</div><div class="text">${text}</div>`;
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+</script>
+  </body>
+</html>
