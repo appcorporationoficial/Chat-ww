@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Importar pchat.js
-const { router: chatRouter, initWebSocket } = require("./pchat");
+const { router: chatRouter } = require("./pchat");
 app.use("/chat", chatRouter);
 
 
