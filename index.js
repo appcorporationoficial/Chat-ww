@@ -9,8 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // Importar pchat.js 
 const { router: chatRouter, initWebSocket } = require("./pchat"); 
-app.use("/chat", chatRouter); // rutas REST de pchat
-const wssPrivado = initWebSocket(server); // levanta el WS privado 
+app.use("/chat", chatRouter); 
 
 
 // Middleware
@@ -24,6 +23,9 @@ app.use(express.static("public")); // Si quieres servir chat.html desde Replit
 const server = app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });
+
+// rutas REST de pchat
+const wssPrivado = initWebSocket(server); // levanta el WS privado 
 
 const wss = new WebSocket.Server({ server });
 
