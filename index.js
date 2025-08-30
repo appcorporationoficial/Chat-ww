@@ -7,8 +7,7 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Importar pchat.js
---- integrar pchat ---
+// Importar pchat.js 
 app.use("/chat", chatRouter); // rutas REST de pchat
 const wssPrivado = initWebSocket(server); // levanta el WS privado 
 
