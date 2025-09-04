@@ -19,6 +19,29 @@ app.use(express.json());
 app.use(express.static("public")); // Si quieres servir chat.html desde Replit 
 
 // ----------------------
+// 🔹 Crear WebSockets sin asignar path al constructor
+// ----------------------
+const wss = new WebSocket.Server({ noServer: true });
+const wssPrivado = new WebSocket.Server({ noServer: true });
+
+// ----------------------
+// 🔹 Manejar upgrade de conexión
+// ----------------------
+server.on("upgrade", (request, socket, head) => {
+  if (request.url === "/ws-global") {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit("connection", ws, request);
+    });
+  } else if (request.url === "/ws-privado") {
+    wssPrivado.handleUpgrade(request, socket, head, (ws) => {
+      wssPrivado.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+}); 
+
+// ----------------------
 // 🔹 WebSocket privado (pchats)
 const wssPrivado = initPrivate(server); // /ws-privado 
 
