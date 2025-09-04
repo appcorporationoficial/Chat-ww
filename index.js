@@ -20,7 +20,7 @@ app.use(express.static("public")); // Si quieres servir chat.html desde Replit
 
 // ----------------------
 // 🔹 WebSocket privado (pchats)
-//const wssPrivado = //initWSPrivado(server); // /ws-privado 
+const wssPrivado = initWSPrivado(server); // /ws-privado 
 
 // ----------------------
 // 🔹 Chat Global (WebSocket)
