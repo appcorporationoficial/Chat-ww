@@ -4,110 +4,78 @@ const router = express.Router();
 const WebSocket = require("ws");
 
 // Historial de mensajes privados en memoria
-const mensajesPrivados = []; // { from, to, text, time }
-let wssPrivadoRef = null; // referencia al WebSocket privado
+let lastMessages = []; // { user, text }
+let clients = {};      // { id: { ws, username } }
+let wssRef = null;     // referencia al WebSocket privado
 
-// --- Función para notificar mensajes privados ---
-function broadcastPrivate(msg) {
-  if (!wssPrivadoRef) return;
-  wssPrivadoRef.clients.forEach(client => {
-    if (
-      client.readyState === WebSocket.OPEN &&
-      (client.username === msg.from || client.username === msg.to)
-    ) {
-      client.send(JSON.stringify({
-        private: true,
-        user: msg.from,
-        to: msg.to,
-        text: msg.text,
-        time: msg.time
-      }));
-    }
-  });
-}
-
-// --- Rutas REST ---
-router.post("/mensaje", (req, res) => {
-  const { from, to, text } = req.body;
-  if (!from || !to || !text) {
-    return res.status(400).json({ error: "Faltan datos" });
-  }
-
-  const msg = { from, to, text, time: Date.now() };
-  mensajesPrivados.push(msg);
-
-  broadcastPrivate(msg);
-
-  res.json({ success: true, msg });
+// --- Rutas REST (mismo comportamiento que el chat global) ---
+router.get("/mensajes", (req, res) => {
+  res.json(lastMessages.slice(-5)); // últimos 5
 });
 
-router.get("/ultimos-mensajes", (req, res) => {
-  const { user } = req.query;
-  if (!user) return res.status(400).json({ error: "Falta usuario" });
+router.post("/mensaje", (req, res) => {
+  const { user, text } = req.body;
+  if (!user || !text) return res.status(400).json({ error: "Faltan datos" });
 
-  const recibidos = mensajesPrivados.filter(
-    m => m.to === user || m.from === user
-  );
-  
-  // Últimos 5 por contacto
-  const ultimosPorUsuario = {};
-  recibidos.forEach(m => {
-    const key = m.from === user ? m.to : m.from;
-    ultimosPorUsuario[key] = m;
-  });
+  const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
+  const msg = { user, text };
+  lastMessages.push(msg);
+  if (lastMessages.length > 50) lastMessages.shift(); // limitar a últimos 50
 
-  const ultimos5 = Object.values(ultimosPorUsuario)
-    .sort((a, b) => b.time - a.time)
-    .slice(0, 5);
+  // Notificar a todos los clientes conectados
+  if (wssRef) {
+    wssRef.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(msg));
+      }
+    });
+  }
 
-  res.json(ultimos5);
+  res.json({ success: true, msg });
 });
 
 // --- Inicializar WebSocket privado ---
 function initWebSocket(server) {
   const wss = new WebSocket.Server({ server, path: "/ws-privado" });
-  wssPrivadoRef = wss;
+  wssRef = wss;
 
   wss.on("connection", ws => {
+    const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
+    ws.id = id;
+
+    console.log("🟢 Nuevo usuario privado conectado");
+
+    // Enviar últimos 5 mensajes
+    lastMessages.slice(-5).forEach(msg => {
+      ws.send(JSON.stringify(msg));
+    });
+
     ws.on("message", msg => {
       try {
         const data = JSON.parse(msg);
+        const username = data.user || "Invitado" + Math.floor(Math.random() * 10000);
 
-        // Validar datos mínimos
-        if (!data.fromName) return;
-        ws.username = data.fromName;
+        // Guardar cliente
+        clients[id] = { ws, username };
 
-        // Enviar últimos mensajes privados si se solicita
-        if (data.requestLast && data.toName) {
-          const privados = mensajesPrivados
-            .filter(m =>
-              (m.from === data.fromName && m.to === data.toName) ||
-              (m.from === data.toName && m.to === data.fromName)
-            )
-            .slice(-5);
+        // Guardar mensaje en historial
+        lastMessages.push({ user: username, text: data.text });
+        if (lastMessages.length > 50) lastMessages.shift();
 
-          ws.send(JSON.stringify({ private: true, history: privados }));
-        }
-
-        // Nuevo mensaje privado
-        if (data.text && data.toName) {
-          const nuevo = {
-            from: data.fromName,
-            to: data.toName,
-            text: data.text,
-            time: Date.now()
-          };
-          mensajesPrivados.push(nuevo);
-          broadcastPrivate(nuevo);
-        }
-      } catch (err) {
-        console.error("WS privado:", err);
-        ws.send(JSON.stringify({ error: "JSON inválido" }));
+        // Reenviar mensaje a todos los clientes
+        wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ user: username, text: data.text }));
+          }
+        });
+      } catch (error) {
+        console.error("Error procesando mensaje WS privado:", error);
       }
     });
 
     ws.on("close", () => {
-      console.log(`🔴 Cliente privado desconectado: ${ws.username}`);
+      delete clients[ws.id];
+      console.log("🔴 Usuario privado desconectado");
     });
   });
 
