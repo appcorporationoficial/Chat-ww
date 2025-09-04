@@ -6,7 +6,7 @@ const cors = require("cors");
 const http = require("http"); 
 
 // Importar pchat.js
-const { router: chatRouter, initWebSocket: initWSPrivado } = require("./pchat"); 
+const { initWebSocket: initWSPrivado } = require("./pchat"); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
