@@ -2,23 +2,34 @@ const WebSocket = require("ws");
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const cors = require("cors");
+const cors = require("cors"); 
+
+// Importar pchat.js
+const { router: chatRouter, initWebSocket: initWSPrivado } = require("./pchat"); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Importar pchat.js 
 const http = require("http"); 
 
 // Middleware
 app.use(cors()); // Permite que HTML externo pueda usar la API
 app.use(express.json());
-app.use(express.static("public")); // Si quieres servir chat.html desde Replit
+app.use(express.static("public")); // Si quieres servir chat.html desde Replit 
+
+const server = http.createServer(app); 
+
+// ----------------------
+// 🔹 Rutas REST pchat
+app.use("/chat", chatRouter);
+
+// ----------------------
+// 🔹 WebSocket privado (pchats)
+const wssPrivado = initWSPrivado(server); // /ws-privado 
 
 // ----------------------
 // 🔹 Chat Global (WebSocket)
-// ----------------------
-const server = http.createServer(app); 
+// ---------------------- 
 
 // WebSocket global (chat público)
 const wss = new WebSocket.Server({ server, path: "/ws-global" }); 
