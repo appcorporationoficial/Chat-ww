@@ -13,10 +13,6 @@ const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(app); 
 
-// ----------------------
-// 🔹 WebSocket privado (pchats)
-const wssPrivado = initWSPrivado(server); // /ws-privado 
-
 // Middleware
 app.use(cors()); // Permite que HTML externo pueda usar la API
 app.use(express.json());
@@ -25,6 +21,10 @@ app.use(express.static("public")); // Si quieres servir chat.html desde Replit
 // ----------------------
 // 🔹 Rutas REST pchat
 app.use("/chat", chatRouter); 
+
+// ----------------------
+// 🔹 WebSocket privado (pchats)
+const wssPrivado = initWSPrivado(server); // /ws-privado 
 
 // ----------------------
 // 🔹 Chat Global (WebSocket)
