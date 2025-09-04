@@ -1,43 +1,13 @@
 // pchat.js
-const express = require("express");
-const router = express.Router();
 const WebSocket = require("ws");
 
-// Historial de mensajes privados en memoria
-let lastMessages = []; // { user, text }
-let clients = {};      // { id: { ws, username } }
-let wssRef = null;     // referencia al WebSocket privado
+let lastMessagesPrivado = []; // historial privado
+let clientsPrivado = {};      // clientes conectados
+let wssRefPrivado = null;     // referencia al WebSocket
 
-// --- Rutas REST (mismo comportamiento que el chat global) ---
-router.get("/mensajes", (req, res) => {
-  res.json(lastMessages.slice(-5)); // últimos 5
-});
-
-router.post("/mensaje", (req, res) => {
-  const { user, text } = req.body;
-  if (!user || !text) return res.status(400).json({ error: "Faltan datos" });
-
-  const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
-  const msg = { user, text };
-  lastMessages.push(msg);
-  if (lastMessages.length > 50) lastMessages.shift(); // limitar a últimos 50
-
-  // Notificar a todos los clientes conectados
-  if (wssRef) {
-    wssRef.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(msg));
-      }
-    });
-  }
-
-  res.json({ success: true, msg });
-});
-
-// --- Inicializar WebSocket privado ---
 function initWebSocket(server) {
   const wss = new WebSocket.Server({ server, path: "/ws-privado" });
-  wssRef = wss;
+  wssRefPrivado = wss;
 
   wss.on("connection", ws => {
     const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
@@ -45,8 +15,8 @@ function initWebSocket(server) {
 
     console.log("🟢 Nuevo usuario privado conectado");
 
-    // Enviar últimos 5 mensajes
-    lastMessages.slice(-5).forEach(msg => {
+    // Enviar últimos 5 mensajes al conectar
+    lastMessagesPrivado.slice(-5).forEach(msg => {
       ws.send(JSON.stringify(msg));
     });
 
@@ -56,25 +26,25 @@ function initWebSocket(server) {
         const username = data.user || "Invitado" + Math.floor(Math.random() * 10000);
 
         // Guardar cliente
-        clients[id] = { ws, username };
+        clientsPrivado[id] = { ws, username };
 
-        // Guardar mensaje en historial
-        lastMessages.push({ user: username, text: data.text });
-        if (lastMessages.length > 50) lastMessages.shift();
+        // Guardar mensaje
+        lastMessagesPrivado.push({ user: username, text: data.text });
+        if (lastMessagesPrivado.length > 50) lastMessagesPrivado.shift();
 
-        // Reenviar mensaje a todos los clientes
+        // Reenviar a todos los clientes privados
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ user: username, text: data.text }));
           }
         });
       } catch (error) {
-        console.error("Error procesando mensaje WS privado:", error);
+        console.error("Error WS privado:", error);
       }
     });
 
     ws.on("close", () => {
-      delete clients[ws.id];
+      delete clientsPrivado[ws.id];
       console.log("🔴 Usuario privado desconectado");
     });
   });
@@ -82,4 +52,4 @@ function initWebSocket(server) {
   return wss;
 }
 
-module.exports = { router, initWebSocket };
+module.exports = { initWebSocket };
