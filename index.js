@@ -49,9 +49,6 @@ const wssPrivado = initPrivate(server); // /ws-privado
 // 🔹 Chat Global (WebSocket)
 // ---------------------- 
 
-// WebSocket global (chat público)
-const wss = new WebSocket.Server({ server, path: "/ws-global" }); 
-
 let lastMessages = []; // { user, text }
 let clients = {}; // { id: { ws, username } }
 
