@@ -22,20 +22,31 @@ function initPrivate(wssPrivado) {
         // Guardar cliente
         clientsPrivado[id] = { ws, username };
 
-        // Enviar últimos 5 mensajes privados al usuario al conectar
-        if (data.requestLast) {
-          const lastForUser = lastMessagesPrivado.filter(
-            m => m.fromName === username || m.toName === username
-          ).slice(-5);
-          lastForUser.forEach(m => {
-            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
+        // 🔹 Enviar "bandeja de entrada" al conectar
+        if (data.requestInbox) {
+          // Agrupar por remitente
+          const inboxMap = {};
+          lastMessagesPrivado.forEach(m => {
+            // Solo mensajes que involucran al usuario conectado
+            if (m.fromName === username || m.toName === username) {
+              inboxMap[m.fromName] = { fromName: m.fromName, text: m.text, time: m.time || new Date() };
+            }
           });
-          return; // No procesar como mensaje normal
+
+          // Tomar últimos 10 usuarios
+          const inboxArray = Object.values(inboxMap)
+            .sort((a, b) => new Date(b.time) - new Date(a.time))
+            .slice(0, 10);
+
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "inbox", messages: inboxArray }));
+          }
+          return; // no procesar como mensaje normal
         }
 
         // Guardar mensaje privado
         if (data.private && toName) {
-          const newMsg = { private: true, fromName: username, toName, text: data.text };
+          const newMsg = { private: true, fromName: username, toName, text: data.text, time: new Date() };
           lastMessagesPrivado.push(newMsg);
           if (lastMessagesPrivado.length > 100) lastMessagesPrivado.shift(); // Limitar historial
 
