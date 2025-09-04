@@ -43,7 +43,7 @@ server.on("upgrade", (request, socket, head) => {
 
 // ----------------------
 // 🔹 WebSocket privado (pchats)
-const wssPrivado = initPrivate(server); // /ws-privado 
+initPrivate(wssPrivado); // /ws-privado 
 
 // ----------------------
 // 🔹 Chat Global (WebSocket)
