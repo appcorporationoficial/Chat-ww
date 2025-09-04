@@ -3,14 +3,13 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors"); 
+const http = require("http"); 
 
 // Importar pchat.js
 const { router: chatRouter, initWebSocket: initWSPrivado } = require("./pchat"); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-const http = require("http"); 
 
 // Middleware
 app.use(cors()); // Permite que HTML externo pueda usar la API
