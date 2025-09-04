@@ -1,42 +1,66 @@
-// pchat.js
 const WebSocket = require("ws");
 
-let lastMessagesPrivado = []; // historial de mensajes privados
-let clientsPrivado = {};      // clientes conectados
+let lastMessagesPrivado = [];
+let clientsPrivado = {};
 
-function initWebSocket(server) {
-  const wss = new WebSocket.Server({ server, path: "/ws-privado" });
-
-  wss.on("connection", (ws) => {
+function initPrivate(wssPrivado) {
+  wssPrivado.on("connection", (ws) => {
     const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
     ws.id = id;
 
     console.log("🟢 Nuevo usuario privado conectado");
 
-    // Enviar últimos 5 mensajes al conectar
-    lastMessagesPrivado.slice(-5).forEach(msg => {
-      ws.send(JSON.stringify(msg));
-    });
+    // Usuario que envía mensajes
+    let username = null;
 
     ws.on("message", (msg) => {
       try {
         const data = JSON.parse(msg);
-        const username = data.user || "Invitado" + Math.floor(Math.random() * 10000);
+        username = data.fromName || username || "Invitado" + Math.floor(Math.random() * 10000);
+        const toName = data.toName;
 
         // Guardar cliente
         clientsPrivado[id] = { ws, username };
 
-        // Guardar mensaje en historial
-        const newMsg = { user: username, text: data.text };
-        lastMessagesPrivado.push(newMsg);
-        if (lastMessagesPrivado.length > 50) lastMessagesPrivado.shift();
-
-        // Reenviar mensaje a todos los clientes privados
-        wss.clients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(newMsg));
+        // ------------------- NUEVO: Bandeja de entrada -------------------
+        if (data.requestInbox) {
+          // Obtener último mensaje de cada usuario (bandeja)
+          const inbox = {};
+          lastMessagesPrivado.forEach(m => {
+            if (m.fromName !== username) inbox[m.fromName] = m;
+            if (m.toName !== username) inbox[m.toName] = m;
+          });
+          // Convertir a array y ordenar por fecha (si tuvieras timestamp)
+          const last10 = Object.values(inbox).slice(-10);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ requestInboxResponse: true, messages: last10 }));
           }
-        });
+          return;
+        }
+
+        // ------------------- Mensaje normal -------------------
+        if (data.private && toName) {
+          const newMsg = { private: true, fromName: username, toName, text: data.text, time: Date.now() };
+          lastMessagesPrivado.push(newMsg);
+          if (lastMessagesPrivado.length > 100) lastMessagesPrivado.shift(); // Limitar historial
+
+          // Enviar solo al destinatario y al remitente
+          Object.values(clientsPrivado).forEach(c => {
+            if (c.username === toName || c.username === username) {
+              if (c.ws.readyState === WebSocket.OPEN) {
+                c.ws.send(JSON.stringify(newMsg));
+              }
+            }
+          });
+
+          // ------------------- NUEVO: Notificación de inbox en tiempo real -------------------
+          Object.values(clientsPrivado).forEach(c => {
+            if (c.username !== username && c.ws.readyState === WebSocket.OPEN) {
+              c.ws.send(JSON.stringify({ type: "inbox-update", message: newMsg }));
+            }
+          });
+        }
+
       } catch (err) {
         console.error("Error WS privado:", err);
       }
@@ -47,8 +71,6 @@ function initWebSocket(server) {
       console.log("🔴 Usuario privado desconectado");
     });
   });
-
-  return wss;
 }
 
-module.exports = { initWebSocket };
+module.exports = { initPrivate };
