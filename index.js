@@ -28,7 +28,8 @@ const server = app.listen(PORT, () => {
 app.use("/chat", chatRouter); // rutas REST de pchat
 const wssPrivado = initWebSocket(server); // levanta el WS privado 
 
-const wss = new WebSocket.Server({ server });
+// WebSocket global (chat público)
+const wss = new WebSocket.Server({ server, path: "/ws-global" }); 
 
 let lastMessages = []; // { user, text }
 let clients = {}; // { id: { ws, username } }
