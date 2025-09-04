@@ -2,23 +2,28 @@ const express = require("express");
 const router = express.Router();
 const WebSocket = require("ws");
 
-// Historial de mensajes (temporal en memoria)
 const mensajes = []; 
-// { from, to, text, time }
+let wssRef = null; // referencia al WebSocket
 
-// Rutas REST
+// --- Rutas REST ---
 router.post("/mensaje", (req, res) => {
-  const { from, to, text, wss } = req.body; // wss se pasa opcional para notificar sockets
+  const { from, to, text } = req.body;
   if (!from || !to || !text) return res.status(400).json({ error: "Faltan datos" });
 
   const msg = { from, to, text, time: Date.now() };
   mensajes.push(msg);
 
-  // Notificar a los sockets conectados
-  if (wss) {
-    wss.clients.forEach(client => {
+  // 🔹 Notificar a los sockets conectados
+  if (wssRef) {
+    wssRef.clients.forEach(client => {
       if (client.readyState === 1 && (client.username === from || client.username === to)) {
-        client.send(JSON.stringify({ private: true, user: from, to, text, time: msg.time }));
+        client.send(JSON.stringify({
+          private: true,
+          user: from,
+          to,
+          text,
+          time: msg.time
+        }));
       }
     });
   }
@@ -26,27 +31,10 @@ router.post("/mensaje", (req, res) => {
   res.json({ success: true, msg });
 });
 
-router.get("/ultimos-mensajes", (req, res) => {
-  const username = req.query.user;
-  if (!username) return res.status(400).json({ error: "Falta usuario" });
-
-  const recibidos = mensajes.filter(m => m.to === username);
-
-  const ultimosPorUsuario = {};
-  recibidos.forEach(m => {
-    ultimosPorUsuario[m.from] = m;
-  });
-
-  const ultimos5 = Object.values(ultimosPorUsuario)
-    .sort((a,b) => b.time - a.time)
-    .slice(0,5);
-
-  res.json(ultimos5);
-});
-
-// Función para inicializar WebSocket en el servidor principal
+// --- WebSocket ---
 function initWebSocket(server) {
   const wss = new WebSocket.Server({ server, path: "/ws-privado" });
+  wssRef = wss; // guardamos referencia global
 
   wss.on("connection", ws => {
     ws.on("message", msg => {
@@ -69,7 +57,13 @@ function initWebSocket(server) {
 
           wss.clients.forEach(client => {
             if (client.readyState === 1 && (client.username === data.fromName || client.username === data.toName)) {
-              client.send(JSON.stringify({ private: true, user: data.fromName, to: data.toName, text: data.text, time: nuevo.time }));
+              client.send(JSON.stringify({
+                private: true,
+                user: data.fromName,
+                to: data.toName,
+                text: data.text,
+                time: nuevo.time
+              }));
             }
           });
         }
