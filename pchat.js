@@ -3,7 +3,7 @@ const router = express.Router();
 const WebSocket = require("ws");
 
 const mensajes = []; 
-let wssRef = null; // referencia al WebSocket
+let wssRef = null; // referencia al WebSocket privado
 
 // --- Rutas REST ---
 router.post("/mensaje", (req, res) => {
@@ -13,7 +13,7 @@ router.post("/mensaje", (req, res) => {
   const msg = { from, to, text, time: Date.now() };
   mensajes.push(msg);
 
-  // 🔹 Notificar a los sockets conectados
+  // Notificar a los sockets privados conectados
   if (wssRef) {
     wssRef.clients.forEach(client => {
       if (client.readyState === 1 && (client.username === from || client.username === to)) {
@@ -31,10 +31,10 @@ router.post("/mensaje", (req, res) => {
   res.json({ success: true, msg });
 });
 
-// --- WebSocket ---
+// WebSocket privado
 function initWebSocket(server) {
   const wss = new WebSocket.Server({ server, path: "/ws-privado" });
-  wssRef = wss; // guardamos referencia global
+  wssRef = wss;
 
   wss.on("connection", ws => {
     ws.on("message", msg => {
@@ -42,10 +42,11 @@ function initWebSocket(server) {
         const data = JSON.parse(msg);
         if (data.fromName) ws.username = data.fromName;
 
-        // Enviar últimos mensajes
+        // Enviar últimos mensajes privados
         if (data.requestLast && data.fromName && data.toName) {
           const privados = mensajes
-            .filter(m => (m.from === data.fromName && m.to === data.toName) || (m.from === data.toName && m.to === data.fromName))
+            .filter(m => (m.from === data.fromName && m.to === data.toName) || 
+                         (m.from === data.toName && m.to === data.fromName))
             .slice(-5);
           ws.send(JSON.stringify({ private: true, history: privados }));
         }
@@ -56,7 +57,8 @@ function initWebSocket(server) {
           mensajes.push(nuevo);
 
           wss.clients.forEach(client => {
-            if (client.readyState === 1 && (client.username === data.fromName || client.username === data.toName)) {
+            if (client.readyState === 1 && 
+               (client.username === data.fromName || client.username === data.toName)) {
               client.send(JSON.stringify({
                 private: true,
                 user: data.fromName,
