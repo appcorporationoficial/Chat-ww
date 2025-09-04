@@ -20,9 +20,7 @@ app.use(express.static("public")); // Si quieres servir chat.html desde Replit
 // ----------------------
 // 🔹 Chat Global (WebSocket)
 // ----------------------
-const server = app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+const server = http.createServer(app); 
 
 // rutas REST de pchat
 app.use("/chat", chatRouter); // rutas REST de pchat
@@ -108,4 +106,11 @@ app.post("/citas", (req, res) => {
 
   fs.writeFileSync(citasFile, JSON.stringify(citas, null, 2));
   res.json({ success: true, cita: nuevaCita });
+});
+
+// ----------------------
+// 🔹 Levantar server
+// ----------------------
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en Render en puerto ${PORT}`);
 });
