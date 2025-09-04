@@ -22,31 +22,25 @@ function initPrivate(wssPrivado) {
         // Guardar cliente
         clientsPrivado[id] = { ws, username };
 
-        // 🔹 Enviar "bandeja de entrada" al conectar
+        // ------------------- NUEVO: Bandeja de entrada -------------------
         if (data.requestInbox) {
-          // Agrupar por remitente
-          const inboxMap = {};
+          // Obtener último mensaje de cada usuario (bandeja)
+          const inbox = {};
           lastMessagesPrivado.forEach(m => {
-            // Solo mensajes que involucran al usuario conectado
-            if (m.fromName === username || m.toName === username) {
-              inboxMap[m.fromName] = { fromName: m.fromName, text: m.text, time: m.time || new Date() };
-            }
+            if (m.fromName !== username) inbox[m.fromName] = m;
+            if (m.toName !== username) inbox[m.toName] = m;
           });
-
-          // Tomar últimos 10 usuarios
-          const inboxArray = Object.values(inboxMap)
-            .sort((a, b) => new Date(b.time) - new Date(a.time))
-            .slice(0, 10);
-
+          // Convertir a array y ordenar por fecha (si tuvieras timestamp)
+          const last10 = Object.values(inbox).slice(-10);
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "inbox", messages: inboxArray }));
+            ws.send(JSON.stringify({ requestInboxResponse: true, messages: last10 }));
           }
-          return; // no procesar como mensaje normal
+          return;
         }
 
-        // Guardar mensaje privado
+        // ------------------- Mensaje normal -------------------
         if (data.private && toName) {
-          const newMsg = { private: true, fromName: username, toName, text: data.text, time: new Date() };
+          const newMsg = { private: true, fromName: username, toName, text: data.text, time: Date.now() };
           lastMessagesPrivado.push(newMsg);
           if (lastMessagesPrivado.length > 100) lastMessagesPrivado.shift(); // Limitar historial
 
@@ -58,7 +52,15 @@ function initPrivate(wssPrivado) {
               }
             }
           });
+
+          // ------------------- NUEVO: Notificación de inbox en tiempo real -------------------
+          Object.values(clientsPrivado).forEach(c => {
+            if (c.username !== username && c.ws.readyState === WebSocket.OPEN) {
+              c.ws.send(JSON.stringify({ type: "inbox-update", message: newMsg }));
+            }
+          });
         }
+
       } catch (err) {
         console.error("Error WS privado:", err);
       }
