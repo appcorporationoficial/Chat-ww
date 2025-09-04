@@ -19,10 +19,6 @@ app.use(express.json());
 app.use(express.static("public")); // Si quieres servir chat.html desde Replit 
 
 // ----------------------
-// 🔹 Rutas REST pchat
-app.use("/chat", chatRouter); 
-
-// ----------------------
 // 🔹 WebSocket privado (pchats)
 const wssPrivado = initWSPrivado(server); // /ws-privado 
 
