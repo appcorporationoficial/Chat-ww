@@ -1,91 +1,89 @@
 // privateChat.js
 const WebSocket = require("ws");
 
-let clientsPrivado = {}; // id → { ws, username }
-let mensajesPrivados = []; // historial global { from, to, text, time }
-
+// Un único servidor WS "noServer" para la ruta /ws-privado
 const wssPrivado = new WebSocket.Server({ noServer: true });
 
+// Mapa: username -> Set<sockets> (por si el mismo usuario abre varias pestañas)
+const users = new Map();
+
+function addUserSocket(username, ws) {
+  if (!users.has(username)) users.set(username, new Set());
+  users.get(username).add(ws);
+}
+
+function removeUserSocket(username, ws) {
+  const set = users.get(username);
+  if (!set) return;
+  set.delete(ws);
+  if (set.size === 0) users.delete(username);
+}
+
+function getUserSockets(username) {
+  return users.get(username) || new Set();
+}
+
+wssPrivado.on("connection", (ws) => {
+  ws.username = null; // se asignará al recibir el primer mensaje
+
+  ws.on("message", (raw) => {
+    let data;
+    try { data = JSON.parse(raw); } catch { return; }
+
+    const { fromName, toName, text } = data || {};
+
+    // Si solo llega fromName (p.ej. handshake) actualiza identidad y no responde
+    if (fromName && !toName && !text) {
+      if (ws.username && ws.username !== fromName) {
+        removeUserSocket(ws.username, ws);
+      }
+      ws.username = fromName;
+      addUserSocket(fromName, ws);
+      return;
+    }
+
+    // Requiere los tres campos para enviar mensaje
+    if (!fromName || !toName || !text) return;
+
+    // Asegura que el socket esté registrado bajo fromName
+    if (!ws.username) {
+      ws.username = fromName;
+      addUserSocket(fromName, ws);
+    } else if (ws.username !== fromName) {
+      removeUserSocket(ws.username, ws);
+      ws.username = fromName;
+      addUserSocket(fromName, ws);
+    }
+
+    const payload = { private: true, fromName, toName, text };
+
+    // Eco al emisor
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+    }
+
+    // Enviar a todos los sockets del destinatario (si están conectados)
+    for (const sock of getUserSockets(toName)) {
+      if (sock.readyState === WebSocket.OPEN) {
+        sock.send(JSON.stringify(payload));
+      }
+    }
+  });
+
+  ws.on("close", () => {
+    if (ws.username) removeUserSocket(ws.username, ws);
+  });
+});
+
+// Integración con tu HTTP server sin tocar tu ws global
 function initPrivate(server) {
   server.on("upgrade", (req, socket, head) => {
-    if (req.url !== "/ws-privado") return;
-    wssPrivado.handleUpgrade(req, socket, head, (ws) => {
-      wssPrivado.emit("connection", ws, req);
+    // Solo atendemos /ws-privado; otras rutas las maneja tu ws global
+    if (!req.url || !req.url.startsWith("/ws-privado")) return;
+    wssPrivado.handleUpgrade(req, socket, head, (client) => {
+      wssPrivado.emit("connection", client, req);
     });
   });
-
-  wssPrivado.on("connection", (ws) => {
-    const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
-    ws.id = id;
-    clientsPrivado[id] = { ws, username: "Invitado" + Math.floor(Math.random() * 1000) };
-
-    console.log("🟢 Usuario privado conectado:", clientsPrivado[id].username);
-
-    ws.on("message", (msg) => {
-      try {
-        const data = JSON.parse(msg);
-
-        // Registrar username
-        if (data.fromName) {
-          clientsPrivado[id].username = data.fromName;
-        }
-
-        // 📌 Solicitud de historial
-        if (data.requestLast && data.fromName && data.toName) {
-          const history = mensajesPrivados.filter(
-            m =>
-              (m.from === data.fromName && m.to === data.toName) ||
-              (m.from === data.toName && m.to === data.fromName)
-          ).slice(-5);
-
-          ws.send(JSON.stringify({ private: true, history }));
-          return;
-        }
-
-        // 📌 Nuevo mensaje privado
-        if (data.text && data.fromName && data.toName) {
-          const nuevo = {
-            from: data.fromName,
-            to: data.toName,
-            text: data.text,
-            time: Date.now()
-          };
-          mensajesPrivados.push(nuevo);
-          if (mensajesPrivados.length > 100) mensajesPrivados.shift();
-
-          // Mandar al destinatario si está conectado
-          const destinatario = Object.values(clientsPrivado).find(c => c.username === data.toName);
-          if (destinatario && destinatario.ws.readyState === WebSocket.OPEN) {
-            destinatario.ws.send(JSON.stringify({
-              private: true,
-              user: nuevo.from,
-              to: nuevo.to,
-              text: nuevo.text,
-              time: nuevo.time
-            }));
-          }
-
-          // Mandar confirmación al emisor
-          ws.send(JSON.stringify({
-            private: true,
-            user: nuevo.from,
-            to: nuevo.to,
-            text: nuevo.text,
-            time: nuevo.time
-          }));
-        }
-      } catch (err) {
-        console.error("❌ Error en WS privado:", err);
-        ws.send(JSON.stringify({ error: "Formato JSON inválido" }));
-      }
-    });
-
-    ws.on("close", () => {
-      console.log("🔴 Usuario privado desconectado:", clientsPrivado[id].username);
-      delete clientsPrivado[id];
-    });
-  });
-
   return wssPrivado;
 }
 
