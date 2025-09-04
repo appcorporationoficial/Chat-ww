@@ -6,7 +6,7 @@ const cors = require("cors");
 const http = require("http"); 
 
 // Importar pchat.js
-const { initWebSocket: initWSPrivado } = require("./pchat"); 
+const { initPrivate } = require("./privateChat"); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +20,7 @@ app.use(express.static("public")); // Si quieres servir chat.html desde Replit
 
 // ----------------------
 // 🔹 WebSocket privado (pchats)
-const wssPrivado = initWSPrivado(server); // /ws-privado 
+const wssPrivado = initPrivate(server); // /ws-privado 
 
 // ----------------------
 // 🔹 Chat Global (WebSocket)
