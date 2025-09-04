@@ -1,36 +1,50 @@
+// privateChat.js
 const WebSocket = require("ws");
 
-let lastMessages = [];
-let clients = {};
+let lastMessagesPrivado = [];
+let clientsPrivado = {};
 
 function initPrivate(server) {
-  const wss = new WebSocket.Server({ server, path: "/ws-privado" });
+  // Escuchar upgrades del server
+  server.on("upgrade", (req, socket, head) => {
+    if (req.url !== "/ws-privado") return;
 
-  wss.on("connection", (ws) => {
-    const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
-    ws.id = id;
+    const ws = new WebSocket.Server({ noServer: true });
 
-    // Enviar últimos 5 mensajes
-    lastMessages.slice(-5).forEach(msg => ws.send(JSON.stringify(msg)));
+    ws.handleUpgrade(req, socket, head, (client) => {
+      ws.emit("connection", client, req);
 
-    ws.on("message", (msg) => {
-      const data = JSON.parse(msg);
-      const username = data.user || "Invitado" + Math.floor(Math.random() * 10000);
+      const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
+      client.id = id;
 
-      clients[id] = { ws, username };
-      const newMsg = { user: username, text: data.text };
-      lastMessages.push(newMsg);
-      if (lastMessages.length > 50) lastMessages.shift();
+      console.log("🟢 Nuevo usuario privado conectado");
 
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(newMsg));
+      lastMessagesPrivado.slice(-5).forEach(msg => client.send(JSON.stringify(msg)));
+
+      client.on("message", (msg) => {
+        try {
+          const data = JSON.parse(msg);
+          const username = data.user || "Invitado" + Math.floor(Math.random() * 10000);
+
+          clientsPrivado[id] = { ws: client, username };
+          const newMsg = { user: username, text: data.text };
+          lastMessagesPrivado.push(newMsg);
+          if (lastMessagesPrivado.length > 50) lastMessagesPrivado.shift();
+
+          // Reenviar solo a privados
+          ws.clients.forEach(c => {
+            if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(newMsg));
+          });
+        } catch (err) {
+          console.error("Error WS privado:", err);
+        }
       });
-    });
 
-    ws.on("close", () => delete clients[id]);
+      client.on("close", () => delete clientsPrivado[id]);
+    });
   });
 
-  return wss;
+  return true; // no es un WebSocket.Server real, pero indica que se inicializó
 }
 
 module.exports = { initPrivate };
