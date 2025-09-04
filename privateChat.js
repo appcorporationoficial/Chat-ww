@@ -4,10 +4,8 @@ const WebSocket = require("ws");
 let lastMessagesPrivado = [];
 let clientsPrivado = {};
 
-function initPrivate(server) {
-  // Crear WebSocket.Server real con path /ws-privado
-  const wssPrivado = new WebSocket.Server({ server, path: "/ws-privado" });
-
+function initPrivate(wssPrivado) {
+  // Aquí recibimos el WebSocket creado en index.js
   wssPrivado.on("connection", (ws) => {
     const id = Date.now() + "-" + Math.floor(Math.random() * 10000);
     ws.id = id;
@@ -45,8 +43,6 @@ function initPrivate(server) {
       console.log("🔴 Usuario privado desconectado");
     });
   });
-
-  return wssPrivado;
 }
 
 module.exports = { initPrivate };
