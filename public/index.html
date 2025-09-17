@@ -78,7 +78,7 @@ form.addEventListener("submit", async (e)=>{
     const res = await fetch("/citas", {
       method:"POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({username, edad, intereses})
+      body: JSON.stringify({username, edad, intereses, name})
     });
     const data = await res.json();
     if(data.success){
