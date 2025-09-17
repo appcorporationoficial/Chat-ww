@@ -78,9 +78,21 @@ function mostrarUsuario(usuario){
 
 // Revisar si ya hay usuario guardado en localStorage
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioCitas"));
-if(usuarioGuardado){
-  mostrarUsuario(usuarioGuardado);
-}
+
+if (usuarioGuardado) {
+  // Consultar al servidor si sigue existiendo
+  fetch(`/citas/${usuarioGuardado.username}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.exists) {
+        mostrarUsuario(data.usuario); // sigue existiendo en el server
+      } else {
+        localStorage.removeItem("usuarioCitas"); // lo borramos del navegador
+        console.log("Usuario ya no existe en el servidor");
+      }
+    })
+    .catch(err => console.error("Error verificando usuario:", err));
+} 
 
 form.addEventListener("submit", async (e)=>{
   e.preventDefault();
