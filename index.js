@@ -126,7 +126,27 @@ app.post("/citas", (req, res) => {
 
   fs.writeFileSync(citasFile, JSON.stringify(citas, null, 2));
   res.json({ success: true, cita: nuevaCita });
-});
+}); 
+
+// Eliminar usuario por username
+app.delete("/citas/:username", (req, res) => {
+  const username = req.params.username;
+
+  if (!fs.existsSync(citasFile)) {
+    return res.status(404).json({ error: "No hay citas registradas" });
+  }
+
+  let citas = JSON.parse(fs.readFileSync(citasFile, "utf-8"));
+
+  const nuevaLista = citas.filter(c => c.username !== username);
+
+  if (citas.length === nuevaLista.length) {
+    return res.status(404).json({ error: "Usuario no encontrado" });
+  }
+
+  fs.writeFileSync(citasFile, JSON.stringify(nuevaLista, null, 2));
+  res.json({ success: true, message: `Usuario ${username} eliminado` });
+}); 
 
 // ----------------------
 // 🔹 Levantar server
