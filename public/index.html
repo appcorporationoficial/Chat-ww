@@ -54,13 +54,27 @@ function mostrarUsuario(usuario){
   form.style.display = "none";
 
   // Botón para cambiar usuario
-  document.getElementById("cambiarUsuario").addEventListener("click", () => {
-    localStorage.removeItem("usuarioCitas");
-    userInfo.style.display = "none";
-    form.style.display = "flex";
-    mensaje.textContent = "";
-  });
-}
+  document.getElementById("cambiarUsuario").addEventListener("click", async () => {
+  const usuario = JSON.parse(localStorage.getItem("usuarioCitas"));
+  
+  if (usuario) {
+    try {
+      const res = await fetch(`/citas/${usuario.username}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      console.log(data.message || "Usuario eliminado");
+    } catch (err) {
+      console.error("Error al eliminar en el servidor:", err);
+    }
+  }
+
+  // Borrar también del cliente
+  localStorage.removeItem("usuarioCitas");
+  userInfo.style.display = "none";
+  form.style.display = "flex";
+  mensaje.textContent = "";
+});
 
 // Revisar si ya hay usuario guardado en localStorage
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioCitas"));
