@@ -121,7 +121,7 @@ app.post("/citas", (req, res) => {
     return res.status(400).json({ error: "Usuario ya registrado" });
   }
 
-  const nuevaCita = { username, edad: edad || "", intereses: intereses || "", fecha: new Date() };
+  const nuevaCita = { username, edad: edad || "", intereses: intereses || "", name: name || "", fecha: new Date() };
   citas.push(nuevaCita);
 
   fs.writeFileSync(citasFile, JSON.stringify(citas, null, 2));
