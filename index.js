@@ -108,7 +108,7 @@ app.get("/citas", (req, res) => {
 
 // Agregar nueva solicitud de cita
 app.post("/citas", (req, res) => {
-  const { username, edad, intereses } = req.body;
+  const { username, edad, intereses, name } = req.body;
   if (!username) return res.status(400).json({ error: "Falta username" });
 
   let citas = [];
