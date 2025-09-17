@@ -32,6 +32,11 @@ button:hover{background:#1d5cd6;}
 </form>
 
 <script>
+
+// Obtener user del link
+const urlParams = new URLSearchParams(window.location.search);
+const username = urlParams.get('user') || 'user_ejemplo'; 
+
 const form = document.getElementById("citaForm");
 const mensaje = document.getElementById("mensaje");
 const userInfo = document.getElementById("userInfo");
@@ -65,10 +70,9 @@ if(usuarioGuardado){
 
 form.addEventListener("submit", async (e)=>{
   e.preventDefault();
-  const username = document.getElementById("username").value.trim();
+  const name = document.getElementById("username").value.trim();
   const edad = document.getElementById("edad").value;
   const intereses = document.getElementById("intereses").value; 
-const name = JSON.parse(localStorage.getItem("xchatUser")); 
 
   try {
     const res = await fetch("/citas", {
