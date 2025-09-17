@@ -148,6 +148,24 @@ app.delete("/citas/:username", (req, res) => {
   res.json({ success: true, message: `Usuario ${username} eliminado` });
 }); 
 
+// Verificar si un usuario existe
+app.get("/citas/:username", (req, res) => {
+  const username = req.params.username;
+
+  if (!fs.existsSync(citasFile)) {
+    return res.status(404).json({ exists: false });
+  }
+
+  const citas = JSON.parse(fs.readFileSync(citasFile, "utf-8"));
+  const usuario = citas.find(c => c.username === username);
+
+  if (usuario) {
+    res.json({ exists: true, usuario });
+  } else {
+    res.json({ exists: false });
+  }
+}); 
+
 // ----------------------
 // 🔹 Levantar server
 // ----------------------
