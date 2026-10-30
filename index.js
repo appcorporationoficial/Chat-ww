@@ -1,3 +1,5 @@
+import stickerRouter from './sticker/converter.js'
+
 const WebSocket = require("ws");
 const express = require("express");
 const fs = require("fs");
@@ -17,6 +19,7 @@ const server = http.createServer(app);
 app.use(cors()); // Permite que HTML externo pueda usar la API
 app.use(express.json());
 app.use(express.static("public")); // Si quieres servir chat.html desde Replit 
+app.use('/sticker', stickerRouter)
 
 // ----------------------
 // 🔹 Crear WebSockets sin asignar path al constructor
