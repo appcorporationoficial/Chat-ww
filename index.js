@@ -1,4 +1,4 @@
-import stickerRouter from './sticker/converter.js'
+const stickerRouter = require('./sticker/converter')
 
 const WebSocket = require("ws");
 const express = require("express");
