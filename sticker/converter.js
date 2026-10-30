@@ -8,7 +8,7 @@ import crypto from 'crypto'
 
 const router = express.Router()
 
-const TOKEN = process.env.STICKER_API_TOKEN
+const TOKEN = process.env.STICKER_API_TOKEN || "wow" 
 
 // ======================================================
 // AUTENTICACIÓN
