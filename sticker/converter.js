@@ -1,14 +1,13 @@
 
-import express from 'express'
-import { spawn } from 'child_process'
-import fs from 'fs/promises'
-import os from 'os'
-import path from 'path'
-import crypto from 'crypto'
+const express = require('express')
+const { spawn } = require('child_process')
+const fs = require('fs').promises
+const os = require('os')
+const path = require('path')
 
 const router = express.Router()
 
-const TOKEN = process.env.STICKER_API_TOKEN || "wow" 
+const TOKEN = process.env.STICKER_API_TOKEN || 'wow'
 
 // ======================================================
 // AUTENTICACIÓN
@@ -19,13 +18,7 @@ function authenticate(req, res, next) {
     req.headers['x-api-key'] ||
     req.headers.authorization?.replace(/^Bearer\s+/i, '')
 
-  if (!TOKEN) {
-    return res.status(503).json({
-      error: 'Token no configurado.'
-    })
-  }
-
-  if (token !== TOKEN) {
+  if (!token || token !== TOKEN) {
     return res.status(401).json({
       error: 'Token inválido.'
     })
@@ -47,36 +40,30 @@ function runFFmpeg(args) {
     let stderr = ''
     let finished = false
 
-    const timer = setTimeout(() => {
-      proc.kill('SIGKILL')
-      finish(reject, new Error('Tiempo de conversión agotado.'))
-    }, 120000)
-
-    function finish(fn, value) {
+    const finish = (fn, value) => {
       if (finished) return
-
       finished = true
       clearTimeout(timer)
       fn(value)
     }
+
+    const timer = setTimeout(() => {
+      proc.kill('SIGKILL')
+      finish(reject, new Error('Tiempo de conversión agotado.'))
+    }, 120000)
 
     proc.stderr.on('data', data => {
       stderr += data.toString()
       stderr = stderr.slice(-10000)
     })
 
-    proc.on('error', error => {
-      finish(reject, error)
-    })
+    proc.on('error', error => finish(reject, error))
 
     proc.on('close', code => {
       if (code === 0) {
         finish(resolve)
       } else {
-        finish(
-          reject,
-          new Error(stderr || 'Error de FFmpeg.')
-        )
+        finish(reject, new Error(stderr || 'Error de FFmpeg.'))
       }
     })
   })
@@ -98,7 +85,7 @@ async function convertSticker(buffer, isVideo = false) {
     await fs.writeFile(input, buffer)
 
     const filters = [
-      'scale=512:512:force_original_aspect_ratio=decrease:force_divisible_by=2',
+      'scale=512:512:force_original_aspect_ratio=decrease',
       'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0',
       'setsar=1',
       'format=yuva420p'
@@ -118,13 +105,17 @@ async function convertSticker(buffer, isVideo = false) {
     }
 
     args.push(
-      '-c:v', 'libwebp_anim',
+      '-c:v', isVideo ? 'libwebp_anim' : 'libwebp',
       '-lossless', '0',
       '-q:v', '80',
-      '-compression_level', '6',
-      '-loop', '0',
-      output
+      '-compression_level', '6'
     )
+
+    if (isVideo) {
+      args.push('-loop', '0')
+    }
+
+    args.push(output)
 
     await runFFmpeg(args)
 
@@ -163,13 +154,9 @@ router.post(
         })
       }
 
-      const isVideo =
-        req.headers['x-media-type'] === 'video'
+      const isVideo = req.headers['x-media-type'] === 'video'
 
-      const result = await convertSticker(
-        req.body,
-        isVideo
-      )
+      const result = await convertSticker(req.body, isVideo)
 
       res.set({
         'Content-Type': 'image/webp',
@@ -214,5 +201,4 @@ router.get('/status', authenticate, async (req, res) => {
   }
 })
 
-export default router
-      
+module.exports = router
